@@ -1,27 +1,108 @@
 import './style.css'
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import * as dat from 'lil-gui';
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+import vertexShader from '/src/shaders/vertex.glsl'
+import fragmentShader from '/src/shaders/fragment.glsl'
 
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize( window.innerWidth, window.innerHeight );
-document.body.appendChild( renderer.domElement );
+class App {
+  constructor() {
+    this.getSizes();
+    this.createRenderer();
+    this.createCamera();
+    this.createScene();
+    this.createMesh();
+    this.createGui();
+    this.createControl();
 
-const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-const cube = new THREE.Mesh( geometry, material );
-scene.add( cube );
+    this.addEventListeners();
 
-camera.position.z = 5;
+    this.animate();
+  }
 
-function animate() {
-	requestAnimationFrame( animate );
+  getSizes() {
+    this.sizes = {
+      width: window.innerWidth,
+      height: window.innerHeight
+    }
+  }
 
-	cube.rotation.x += 0.01;
-	cube.rotation.y += 0.01;
+  /**
+   * Create
+   */
 
-	renderer.render( scene, camera );
+  createScene() {
+    this.scene = new THREE.Scene();
+  }
+
+  createCamera() {
+    this.camera = new THREE.PerspectiveCamera( 75, this.sizes.width / this.sizes.height, 0.1, 1000 );
+    this.camera.position.z = 5;
+    this.camera.updateProjectionMatrix();
+  }
+
+  createMesh() {
+    this.geometry = new THREE.BoxGeometry( 1, 1, 1 );
+    this.material = new THREE.ShaderMaterial({
+      vertexShader: vertexShader,
+      fragmentShader: fragmentShader,
+      // wireframe: true,
+      uniforms: {
+        uTime: { value: 0 },
+        uProgress: { value: 0 }
+      }
+    })
+    this.cube = new THREE.Mesh( this.geometry, this.material );
+    this.scene.add( this.cube );
+  }
+
+  createRenderer() {
+    this.renderer = new THREE.WebGLRenderer();
+    this.renderer.setSize( this.sizes.width, this.sizes.height );
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    document.body.appendChild( this.renderer.domElement );
+  }
+
+  createGui() {
+    const settings = {
+      progress: 0
+    }
+    this.gui = new dat.GUI()
+    this.gui.add(settings, 'progress', 0, 1, 0.05)
+  }
+
+  createControl() {
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement)
+    this.controls.enableDamping = true
+  }
+
+  /**
+   * Events
+   */
+
+  onResize() {
+    this.getSizes()
+    this.camera.aspect = this.sizes.width / this.sizes.height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize( this.sizes.width, this.sizes.height );
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  }
+
+  addEventListeners() {
+    window.addEventListener('resize', this.onResize.bind(this));
+  }
+
+  animate() {
+    window.requestAnimationFrame( this.animate.bind(this) );
+
+    this.controls.update();
+  
+    this.cube.rotation.x += 0.005;
+    this.cube.rotation.y += 0.005;
+  
+    this.renderer.render( this.scene, this.camera );
+  }
 }
 
-animate();
+const app = new App();
